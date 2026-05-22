@@ -1,0 +1,9 @@
+# Dependency directories
+node_modules/
+**/node_modules/
+
+# Package files (package.json and lock files)
+package.json
+package-lock.json
+**/package.json
+**/package-lock.json
