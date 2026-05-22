@@ -1,7 +1,8 @@
 const io = require('socket.io')
 
-exports.roomGet = (req,res,next) => {
-    res.status(200).json({message: "getting info from server"})
+exports.roomGet = async (req,res,next) => {
+      
+    res.status(200).json(   )
 }
 
 exports.roomPost = async (req,res,next) => {
