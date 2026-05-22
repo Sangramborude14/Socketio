@@ -8,8 +8,9 @@ export default function ChatInterface(){
     const { roomId } = useParams();
     const navigate = useNavigate();
     const [isConnected, setIsConnected] = useState(false);
-    const [chat,setChat] = useState("");
-    const [message,setMessage] = useState("");
+    
+    const [messages, setMessages] = useState([]);
+    const [messageInput, setMessageInput] = useState("");
 
     useEffect(() => {
         const onConnect = () => {
@@ -17,21 +18,13 @@ export default function ChatInterface(){
             socket.emit('join-room', roomId);
         };
 
-        async function display(){
-            try{
-                const response = await fetch(`http://localhost:8000/api/:${roomId}`,{
-                    METHOD: "GET"
-                })
-                const data = await response.json()
-
-            }catch(error){
-                console.log(`error fetching data from backend`)
-            }
-        }
-
         const onDisconnect = () => {
             setIsConnected(false);
         };
+
+        const onReceivingMessage = (data) => {
+            setMessages((prevMessages) => [...prevMessages, data])
+        }
 
         if (socket.connected) {
             onConnect();
@@ -40,21 +33,33 @@ export default function ChatInterface(){
         }
 
         socket.on('disconnect', onDisconnect);
+        socket.on('receive-message', onReceivingMessage);
 
         return () => {
             socket.off('connect', onConnect);
             socket.off('disconnect', onDisconnect);
+            socket.off('receive-message', onReceivingMessage);
         }
     }, [roomId])
 
-    const pushMessage = async () => {
-        const reply = document.getElementById("userReply").value;
-        setMessage(reply)
-        const response = await fetch(`http://localhost:8000/api/:${roomId}`,{
-            method: "POST",
-        })
+    const handleSendMessage = (e) => {
+        e.preventDefault();
 
-    }
+        if (messageInput.trim() === "") return;
+
+        const messageData = {
+            roomId,
+            text: messageInput.trim(),
+            senderId: socket.id,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+        };
+    
+        // send to backend
+        socket.emit('send-message', messageData);
+
+        setMessages((prev) => [...prev, messageData]);
+        setMessageInput("");
+    };
 
     return (
         <>
@@ -64,10 +69,29 @@ export default function ChatInterface(){
                 <p className="text-black">{isConnected ? 'connected🟢' : 'disconnected 🔴'}</p>
                 <button onClick={() => navigate('/')}>Leave Room</button>
                 <div>
-                    <p></p>
-                    <input type="text" value={message} id="userReply" onChange={(e) => setMessage(e.target.value)}/>
-                    <button onClick={pushMessage}>SEND</button>
+                    {messages.length === 0 ? (
+                        <p>No messages yet</p>
+                    ) : (
+                        messages.map((msg, index) => (
+                            <div key={index}>
+                                <strong>{msg.senderId === socket.id ? "You" : "Other"}:</strong> {msg.text} 
+                                <span style={{ fontSize: '0.8em', color: '#666', marginLeft: '8px' }}>({msg.timestamp})</span>
+                            </div>
+                        ))
+                    )}
                 </div>
+                <form onSubmit={handleSendMessage}>
+                    <input 
+                        type="text" 
+                        value={messageInput} 
+                        onChange={(e) => setMessageInput(e.target.value)} 
+                        placeholder="enter your message"
+                    />
+                    <button type="submit">SEND</button>
+                    <button type="button" onClick={() => navigate('/')}>
+                        Leave Room
+                    </button>
+                </form>
             </div>
         </>
     )
